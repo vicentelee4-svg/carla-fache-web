@@ -1,0 +1,36 @@
+CARLA FACHE - VERSION LISTA PARA CLOUDFLARE PAGES
+
+1. Crea una cuenta gratuita en https://dash.cloudflare.com/sign-up
+2. Instala Node.js LTS para Windows desde https://nodejs.org/
+3. Extrae el ZIP completo. No lo ejecutes desde la vista interna del ZIP.
+4. Abre la carpeta carla-fache-cloudflare. Haz clic en la barra de direccion
+   del Explorador, escribe powershell y pulsa Enter.
+5. Ejecuta:
+
+   powershell -ExecutionPolicy Bypass -File .\Publicar-Cloudflare.ps1
+
+6. Autoriza Cloudflare en el navegador, elige un nombre de proyecto y responde
+   N si es nuevo. Busca la URL del proyecto en Cloudflare > Workers & Pages
+   y pegala cuando te la pida. Si el nombre no esta disponible, elige otro.
+7. Espera a que Wrangler termine. La pagina se sirve en el dominio pages.dev
+   de tu proyecto y puede abrirse desde el celular sin iniciar sesion.
+
+El script usa los comandos oficiales de Wrangler: login, pages project create
+ y pages deploy. No incluye tokens ni contrasenas. Cambia las URL de metadatos
+ para que las vistas previas al compartir apunten al nuevo sitio.
+
+No necesitas comprar dominio para usar la direccion pages.dev.
+La carpeta dist ya esta construida: no necesitas Python ni compilar nada para
+esta primera publicacion. src, scripts y tests permiten modificar el codigo.
+
+Para publicar una actualizacion, repite el comando y responde S cuando pregunte
+si el proyecto ya existe. Usa el mismo nombre y dominio.
+
+La copia fue adaptada a las rutas sin extension de Cloudflare Pages y conserva
+los nombres originales, imagenes, monedas, favoritos, visor, recortes y enlaces.
+Los favoritos guardados en el dominio anterior no se transfieren, porque se
+almacenan localmente en cada navegador y dominio.
+
+Documentacion:
+https://developers.cloudflare.com/pages/get-started/direct-upload/
+https://developers.cloudflare.com/pages/platform/limits/
