@@ -1,0 +1,11 @@
+.wrangler/
+node_modules/
+__pycache__/
+*.pyc
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+*.pem
+*.key

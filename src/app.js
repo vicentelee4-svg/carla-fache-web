@@ -130,11 +130,18 @@ const esc = s => String(s || '').replace(/[&<>"']/g, c => ({
 function clean(s) {
   const t = document.createElement('template');
   t.innerHTML = s;
-  t.content.querySelectorAll('script,style,iframe').forEach(el => el.remove());
+  // Retain only the formatting used by the artist's biography and CV.
+  const allowed = new Set(['P', 'BR', 'A', 'STRONG', 'B', 'EM', 'I', 'U', 'UL', 'OL', 'LI', 'H2', 'H3', 'H4', 'SPAN', 'DIV', 'BLOCKQUOTE']);
+  t.content.querySelectorAll('script,style,iframe,object,embed,svg,math,template,form,input,button,textarea,select,link,meta,base').forEach(el => el.remove());
   t.content.querySelectorAll('*').forEach(el => {
+    if (!allowed.has(el.tagName)) { el.replaceWith(...el.childNodes); return; }
     for (const a of [...el.attributes])
       if (a.name !== 'href') el.removeAttribute(a.name);
-    if (el.tagName === 'A' && !/^(https?:|mailto:)/i.test(el.getAttribute('href') || '')) el.removeAttribute('href')
+    if (el.tagName === 'A') {
+      const href = el.getAttribute('href') || '';
+      if (!/^(https:\/\/|mailto:)/i.test(href) || /[\u0000-\u0020\u007f]/.test(href)) el.removeAttribute('href');
+      el.setAttribute('rel', 'noopener noreferrer');
+    }
   });
   return t.innerHTML
 }
