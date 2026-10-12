@@ -309,6 +309,53 @@ function shopPrice(a) {
   return 'US$' + moneyFormatters.USD.format(value)
 }
 
+let measurementSystem = 'metric';
+try {
+  const saved = localStorage.getItem('carla-fache-measurements');
+  if (['metric', 'imperial'].includes(saved)) measurementSystem = saved;
+} catch {}
+const measurementFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
+const customRoomWidths = new WeakMap();
+function measurementUnit() { return measurementSystem === 'imperial' ? 'in' : 'cm'; }
+function artworkLength(cm) { return measurementFormatter.format(measurementSystem === 'imperial' ? cm / 2.54 : cm) + ' ' + measurementUnit(); }
+function wallLength(cm) { return (measurementSystem === 'imperial' ? cm / 30.48 : cm / 100).toFixed(1) + (measurementSystem === 'imperial' ? ' ft' : ' m'); }
+function dimensionText(text) {
+  return String(text || '').replace(/(\d+(?:\.\d+)?(?:\s*[×x]\s*\d+(?:\.\d+)?)+)\s*(cm|inches|in\b)/gi, (_, numbers, unit) => {
+    const factor = unit.toLowerCase() === 'cm' ? 1 : 2.54;
+    return numbers.split(/\s*[×x]\s*/).map(n => measurementFormatter.format(Number(n) * factor / (measurementSystem === 'imperial' ? 2.54 : 1))).join(' × ') + ' ' + measurementUnit();
+  });
+}
+function dimensionMarkup(a) { return `<span data-dimensions="${esc(a.slug)}">${esc(dimensionText(a.dimensions))}</span>`; }
+function measurementSelector() {
+  return `<label class="currency-selector measurement-selector"><span>Measurements</span><select data-measurements aria-label="Measurement system"><option value="metric" ${measurementSystem === 'metric' ? 'selected' : ''}>Metric · cm / m</option><option value="imperial" ${measurementSystem === 'imperial' ? 'selected' : ''}>Imperial · in / ft</option></select></label>`;
+}
+function sizeOptions() {
+  return `<option value="all">All sizes</option><option value="small">Small · up to ${artworkLength(60)}</option><option value="medium">Medium · over ${artworkLength(60)}, up to ${artworkLength(120)}</option><option value="large">Large · over ${artworkLength(120)}</option>`;
+}
+function refreshMeasurements() {
+  document.querySelectorAll('[data-measurements]').forEach(el => el.value = measurementSystem);
+  document.querySelectorAll('[data-dimensions]').forEach(el => { const a = findArtwork(el.dataset.dimensions); if (a) el.textContent = dimensionText(a.dimensions); });
+  const sizes = document.querySelector('#collect-size');
+  if (sizes) { const value = sizes.value; sizes.innerHTML = sizeOptions(); sizes.value = value; }
+  const wall = document.querySelector('#wall-width');
+  if (wall) {
+    document.querySelector('#wall-output').textContent = wallLength(Number(wall.value));
+    document.querySelector('#room-measure').textContent = wallLength(Number(wall.value)) + ' wall';
+  }
+  document.querySelectorAll('[data-wall-height]').forEach(el => el.textContent = wallLength(280));
+  if (dialog.open) {
+    const a = currentImages[activeIndex];
+    document.querySelector('#full-caption').textContent = dimensionText(a.caption || a.seriesName || a.alt);
+    if (viewerMode === 'room') renderViewerRoom();
+  }
+}
+document.addEventListener('change', e => {
+  if (!e.target.matches('[data-measurements]') || !['metric', 'imperial'].includes(e.target.value)) return;
+  measurementSystem = e.target.value;
+  try { localStorage.setItem('carla-fache-measurements', measurementSystem); } catch {}
+  refreshMeasurements();
+});
+
 function currencySelector() {
   return `<label class="currency-selector"><span>Currency</span><select data-currency aria-label="Display currency">${[['USD','USD · US dollars'],['EUR','EUR · Euros'],['CLP','CLP · Chilean pesos']].map(([code,label])=>`<option value="${code}" ${code===displayCurrency?'selected':''}>${label}</option>`).join('')}</select></label>`
 }
@@ -382,15 +429,15 @@ function saveButton(a, detail = false) {
 }
 
 function collectCard(a) {
-  return `<article class="gallery-card"><div class="gallery-image"><a class="gallery-frame" data-collect-art="${DATA.collect.images.indexOf(a)}" href="${a.page}" aria-label="View ${esc(a.title)}">${image({...a,sizes:'(max-width:420px) 90vw, (max-width:700px) 43vw, 28vw'})}</a>${saveButton(a)}</div><div class="gallery-info"><span class="gallery-artist">Carla Fache <span>${esc(a.year)}</span></span><h3><a href="${a.page}">${esc(a.title)}</a></h3><p class="gallery-medium">${esc(a.medium)}<br>${esc(a.dimensions)}</p><p class="gallery-price">${priceMarkup(a)}</p><a class="gallery-buy" href="${esc(a.url)}" target="_blank" rel="noopener">Buy on Artsy <span>↗</span></a></div></article>`
+  return `<article class="gallery-card"><div class="gallery-image"><a class="gallery-frame" data-collect-art="${DATA.collect.images.indexOf(a)}" href="${a.page}" aria-label="View ${esc(a.title)}">${image({...a,sizes:'(max-width:420px) 90vw, (max-width:700px) 43vw, 28vw'})}</a>${saveButton(a)}</div><div class="gallery-info"><span class="gallery-artist">Carla Fache <span>${esc(a.year)}</span></span><h3><a href="${a.page}">${esc(a.title)}</a></h3><p class="gallery-medium">${esc(a.medium)}<br>${dimensionMarkup(a)}</p><p class="gallery-price">${priceMarkup(a)}</p><a class="gallery-buy" href="${esc(a.url)}" target="_blank" rel="noopener">Buy on Artsy <span>↗</span></a></div></article>`
 }
 
 function collectPreview() {
-  return `<section class="collect-preview shell" lang="en"><div class="section-head"><div><span class="eyebrow muted">Art for your collection</span><h2>One work. A new space.</h2></div><div class="gallery-head-actions">${currencySelector()}<a href="/#collect">Explore the gallery ↗</a></div></div><div class="shop-grid">${DATA.collect.images.slice(0,3).map(collectCard).join('')}</div><p class="gallery-note">Original listing prices are in USD. Purchase and availability on Artsy.</p><p class="gallery-note fx-note" data-fx-note>${currencyNote()}</p></section>`
+  return `<section class="collect-preview shell" lang="en"><div class="section-head"><div><span class="eyebrow muted">Art for your collection</span><h2>One work. A new space.</h2></div><div class="gallery-head-actions">${currencySelector()}${measurementSelector()}<a href="/#collect">Explore the gallery ↗</a></div></div><div class="shop-grid">${DATA.collect.images.slice(0,3).map(collectCard).join('')}</div><p class="gallery-note">Original listing prices are in USD. Purchase and availability on Artsy.</p><p class="gallery-note fx-note" data-fx-note>${currencyNote()}</p></section>`
 }
 
 function collect() {
-  main.innerHTML = `<div class="shell collect-page" lang="en">${head('Art gallery','A selection of works by Carla Fache.<br>Find a piece for your collection.')}<div class="collect-intro"><p>Color, materiality and new ways of seeing.<br>Explore the works and continue your purchase on Artsy.</p><label class="saved-filter"><input id="saved-only" type="checkbox"> Saved works <span id="saved-total">${savedArtworks.size}</span></label></div><div class="collect-toolbar"><label class="collect-search"><span>Find an artwork</span><input type="search" id="collect-search" placeholder="Title, year or medium…"></label><label><span>Medium</span><select id="collect-category"><option value="all">All media</option><option value="painting">Acrylic painting</option><option value="mixed">Mixed media</option></select></label><label><span>Size · longest side</span><select id="collect-size"><option value="all">All sizes</option><option value="small">Small · up to 60 cm</option><option value="medium">Medium · 61–120 cm</option><option value="large">Large · over 120 cm</option></select></label><label><span>Color</span><select id="collect-color"><option value="all">All colors</option>${['blue','purple','red','yellow','green','orange','neutral'].map(c=>`<option value="${c}">${c[0].toUpperCase()+c.slice(1)}</option>`).join('')}</select></label><label><span>Sort by</span><select id="collect-sort"><option value="recent">Year: newest first</option><option value="price-asc">Price: low to high</option><option value="price-desc">Price: high to low</option><option value="title">Artwork title</option></select></label></div><div class="collect-count"><span id="collect-count" aria-live="polite"></span><button class="clear-filters" id="clear-collect">Reset filters</button>${currencySelector()}</div><div id="collect-grid" class="shop-grid"></div><p class="gallery-note">Prices published on Artsy, checked October 11, 2026. Availability, shipping and taxes are confirmed on the artwork’s Artsy listing. Favorites are saved in this browser.</p><p class="gallery-note fx-note" data-fx-note>${currencyNote()}</p><div class="collect-help"><div><span class="eyebrow muted">A personal selection</span><h2>Which work speaks to you?</h2><p>For artwork inquiries or to arrange a private viewing, let’s talk.</p></div><a class="text-link" href="/#contact">Contact Carla <span>↗</span></a></div></div>`;
+  main.innerHTML = `<div class="shell collect-page" lang="en">${head('Art gallery','A selection of works by Carla Fache.<br>Find a piece for your collection.')}<div class="collect-intro"><p>Color, materiality and new ways of seeing.<br>Explore the works and continue your purchase on Artsy.</p><label class="saved-filter"><input id="saved-only" type="checkbox"> Saved works <span id="saved-total">${savedArtworks.size}</span></label></div><div class="collect-toolbar"><label class="collect-search"><span>Find an artwork</span><input type="search" id="collect-search" placeholder="Title, year or medium…"></label><label><span>Medium</span><select id="collect-category"><option value="all">All media</option><option value="painting">Acrylic painting</option><option value="mixed">Mixed media</option></select></label><label><span>Size · longest side</span><select id="collect-size">${sizeOptions()}</select></label><label><span>Color</span><select id="collect-color"><option value="all">All colors</option>${['blue','purple','red','yellow','green','orange','neutral'].map(c=>`<option value="${c}">${c[0].toUpperCase()+c.slice(1)}</option>`).join('')}</select></label><label><span>Sort by</span><select id="collect-sort"><option value="recent">Year: newest first</option><option value="price-asc">Price: low to high</option><option value="price-desc">Price: high to low</option><option value="title">Artwork title</option></select></label></div><div class="collect-count"><span id="collect-count" aria-live="polite"></span><button class="clear-filters" id="clear-collect">Reset filters</button>${currencySelector()}${measurementSelector()}</div><div id="collect-grid" class="shop-grid"></div><p class="gallery-note">Prices published on Artsy, checked October 11, 2026. Availability, shipping and taxes are confirmed on the artwork’s Artsy listing. Favorites are saved in this browser.</p><p class="gallery-note fx-note" data-fx-note>${currencyNote()}</p><div class="collect-help"><div><span class="eyebrow muted">A personal selection</span><h2>Which work speaks to you?</h2><p>For artwork inquiries or to arrange a private viewing, let’s talk.</p></div><a class="text-link" href="/#contact">Contact Carla <span>↗</span></a></div></div>`;
   updateCollect();
   document.querySelector('#collect-search').addEventListener('input', scheduleCollectSearch);
   document.querySelectorAll('#collect-category,#collect-sort,#collect-size,#collect-color,#saved-only').forEach(el => el.addEventListener('change', updateCollect));
@@ -440,7 +487,7 @@ function artworkDetail(slug) {
   document.title = `${a.title} — Carla Fache`;
   const i = DATA.collect.images.indexOf(a);
   const related = DATA.collect.images.filter(x => x.slug !== slug).slice(0, 3);
-  main.innerHTML = `<div class="shell artwork-page"><a class="back detail-back" href="/#collect">← Back to gallery</a><section class="artwork-detail"><div class="detail-photo"><button class="detail-image" data-collect-art="${i}" aria-label="Enlarge ${esc(a.title)}">${image({...a,sizes:'(max-width:700px) 90vw, 52vw'},'',true)}</button><button class="detail-zoom" data-collect-art="${i}">Zoom artwork ⤢</button></div><div class="detail-info"><span class="eyebrow muted">Carla Fache · ${esc(a.year)}</span><h1>${esc(a.title)}</h1><p class="detail-medium">${esc(a.medium)}</p><dl><div><dt>Dimensions</dt><dd>${esc(a.dimensions)}</dd></div><div><dt>Year</dt><dd>${esc(a.year)}</dd></div><div><dt>Gallery on Artsy</dt><dd>${esc(a.gallery)}</dd></div></dl>${currencySelector()}<p class="gallery-price">${priceMarkup(a)}</p><a class="gallery-buy" href="${esc(a.url)}" target="_blank" rel="noopener">Buy on Artsy <span>↗</span></a><p class="gallery-note">Confirm availability, shipping and taxes on Artsy.</p><p class="gallery-note fx-note" data-fx-note>${currencyNote()}</p><div class="detail-actions">${saveButton(a,true)}<a class="whatsapp-share" href="${whatsappURL(a)}" target="_blank" rel="noopener">Share on WhatsApp ↗</a><button data-share="${esc(a.slug)}">Share artwork ↗</button><button data-view-room="${i}">View in a room</button></div><p class="share-status" id="share-status" aria-live="polite"></p></div></section><section class="room-section" id="room-preview"><div class="section-head"><div><span class="eyebrow muted">Imagine it in your space</span><h2>Room preview</h2></div><span class="muted room-label">${esc(a.dimensions)}</span></div><div class="room-layout"><div class="room-stage" id="room-stage"><div class="room-floor"></div><div class="room-work ${a.previewShape==='diamond'?'diamond-work':''}" id="room-work" style="aspect-ratio:${a.artRatio};${a.previewClip?'clip-path:'+a.previewClip:''}">${roomArtworkImage(a)}</div><div class="room-bench" aria-hidden="true"></div><span class="room-measure" id="room-measure"></span></div><div class="room-controls"><label for="wall-width">Wall width <output id="wall-output">4.0 m</output></label><input type="range" id="wall-width" min="280" max="600" step="10" value="400"><span class="control-title">Wall color</span>${wallSwatches()}<p class="gallery-note">An approximate scale guide based on the published width. Artwork image proportions are preserved. Wall height: 2.8 m. Furniture is illustrative.</p></div></div></section><section class="detail-related"><div class="section-head"><div><span class="eyebrow muted">Continue exploring</span><h2>More works</h2></div><a href="/#collect">View all works ↗</a></div><div class="shop-grid">${related.map(collectCard).join('')}</div></section></div>`;
+  main.innerHTML = `<div class="shell artwork-page"><a class="back detail-back" href="/#collect">← Back to gallery</a><section class="artwork-detail"><div class="detail-photo"><button class="detail-image" data-collect-art="${i}" aria-label="Enlarge ${esc(a.title)}">${image({...a,sizes:'(max-width:700px) 90vw, 52vw'},'',true)}</button><button class="detail-zoom" data-collect-art="${i}">Zoom artwork ⤢</button></div><div class="detail-info"><span class="eyebrow muted">Carla Fache · ${esc(a.year)}</span><h1>${esc(a.title)}</h1><p class="detail-medium">${esc(a.medium)}</p><dl><div><dt>Dimensions</dt><dd>${dimensionMarkup(a)}</dd></div><div><dt>Year</dt><dd>${esc(a.year)}</dd></div><div><dt>Gallery on Artsy</dt><dd>${esc(a.gallery)}</dd></div></dl>${currencySelector()}${measurementSelector()}<p class="gallery-price">${priceMarkup(a)}</p><a class="gallery-buy" href="${esc(a.url)}" target="_blank" rel="noopener">Buy on Artsy <span>↗</span></a><p class="gallery-note">Confirm availability, shipping and taxes on Artsy.</p><p class="gallery-note fx-note" data-fx-note>${currencyNote()}</p><div class="detail-actions">${saveButton(a,true)}<a class="whatsapp-share" href="${whatsappURL(a)}" target="_blank" rel="noopener">Share on WhatsApp ↗</a><button data-share="${esc(a.slug)}">Share artwork ↗</button><button data-view-room="${i}">View in a room</button></div><p class="share-status" id="share-status" aria-live="polite"></p></div></section><section class="room-section" id="room-preview"><div class="section-head"><div><span class="eyebrow muted">Imagine it in your space</span><h2>Room preview</h2></div><span class="muted room-label">${dimensionMarkup(a)}</span></div><div class="room-layout"><div class="room-stage" id="room-stage"><div class="room-floor"></div><div class="room-work ${a.previewShape==='diamond'?'diamond-work':''}" id="room-work" style="aspect-ratio:${a.artRatio};${a.previewClip?'clip-path:'+a.previewClip:''}">${roomArtworkImage(a)}</div><div class="room-bench" aria-hidden="true"></div><span class="room-measure" id="room-measure"></span></div><div class="room-controls"><label for="wall-width">Wall width <output id="wall-output">${wallLength(400)}</output></label><input type="range" id="wall-width" min="280" max="600" step="10" value="400"><span class="control-title">Wall color</span>${wallSwatches()}<p class="gallery-note">An approximate scale guide based on the published width. Artwork image proportions are preserved. Wall height: <span data-wall-height>${wallLength(280)}</span>. Furniture is illustrative.</p></div></div></section><section class="detail-related"><div class="section-head"><div><span class="eyebrow muted">Continue exploring</span><h2>More works</h2></div><a href="/#collect">View all works ↗</a></div><div class="shop-grid">${related.map(collectCard).join('')}</div></section></div>`;
   const width = document.querySelector('#wall-width');
   width.addEventListener('input', () => updateRoom(a, Number(width.value)));
   updateRoom(a, 400)
@@ -465,8 +512,8 @@ function roomArtworkImage(a) {
 function updateRoom(a, width) {
   document.querySelector('#room-stage').style.aspectRatio = `${width}/280`;
   document.querySelector('#room-work').style.width = `${100*a.widthCm/width}%`;
-  document.querySelector('#wall-output').textContent = (width / 100).toFixed(1) + ' m';
-  document.querySelector('#room-measure').textContent = (width / 100).toFixed(1) + ' m wall'
+  document.querySelector('#wall-output').textContent = wallLength(width);
+  document.querySelector('#room-measure').textContent = wallLength(width) + ' wall'
 }
 
 function whatsappURL(a) {
@@ -566,16 +613,17 @@ function renderViewerRoom() {
     document.querySelector('#viewer-room').innerHTML = '<p class="room-unavailable">This exhibition photograph contains several works. An isolated artwork image is needed for a room preview.</p>';
     return
   }
-  document.querySelector('#viewer-room').innerHTML = `<div class="room-layout viewer-room-layout"><div class="room-stage" id="viewer-room-stage" style="background:${viewerWallColor}"><div class="room-floor"></div><div class="room-work ${a.previewShape==='diamond'?'diamond-work':''}" id="viewer-room-work" style="aspect-ratio:${a.artRatio};${a.previewClip?'clip-path:'+a.previewClip:''}">${roomArtworkImage(a)}</div><div class="room-bench" aria-hidden="true"></div><span class="room-measure" id="viewer-room-measure"></span></div><div class="room-controls"><label for="viewer-wall-width">Wall width <output id="viewer-wall-output">4.0 m</output></label><input id="viewer-wall-width" type="range" min="280" max="600" step="10" value="${viewerWallWidth}"><label for="viewer-art-width">Artwork width (cm)</label><input id="viewer-art-width" type="number" min="1" max="600" step="0.1" value="${Number(a.widthCm.toFixed(1))}"><p class="viewer-width-note">${a.estimatedWidth?'Enter the artwork’s actual width to set the scale.':`Published width: ${Number(a.widthCm.toFixed(1))} cm.`}</p><span class="control-title">Wall color</span>${wallSwatches(true)}<p class="gallery-note">Approximate scale guide. Image proportions are preserved. Wall height: 2.8 m. Furniture is illustrative.</p></div></div>`;
+  document.querySelector('#viewer-room').innerHTML = `<div class="room-layout viewer-room-layout"><div class="room-stage" id="viewer-room-stage" style="background:${viewerWallColor}"><div class="room-floor"></div><div class="room-work ${a.previewShape==='diamond'?'diamond-work':''}" id="viewer-room-work" style="aspect-ratio:${a.artRatio};${a.previewClip?'clip-path:'+a.previewClip:''}">${roomArtworkImage(a)}</div><div class="room-bench" aria-hidden="true"></div><span class="room-measure" id="viewer-room-measure"></span></div><div class="room-controls">${measurementSelector()}<label for="viewer-wall-width">Wall width <output id="viewer-wall-output">${wallLength(viewerWallWidth)}</output></label><input id="viewer-wall-width" type="range" min="280" max="600" step="10" value="${viewerWallWidth}"><label for="viewer-art-width">Artwork width (${measurementUnit()})</label><input id="viewer-art-width" type="number" min="${measurementSystem === 'imperial' ? 1/2.54 : 1}" max="${measurementSystem === 'imperial' ? 600/2.54 : 600}" step="any" value="${(customRoomWidths.get(original) || a.widthCm) / (measurementSystem === 'imperial' ? 2.54 : 1)}"><p class="viewer-width-note">${a.estimatedWidth?'Enter the artwork’s actual width to set the scale.':`Published width: ${artworkLength(a.widthCm)}.`}</p><span class="control-title">Wall color</span>${wallSwatches(true)}<p class="gallery-note">Approximate scale guide. Image proportions are preserved. Wall height: <span data-wall-height>${wallLength(280)}</span>. Furniture is illustrative.</p></div></div>`;
   const update = () => {
     const wall = Number(document.querySelector('#viewer-wall-width').value),
-      art = Number(document.querySelector('#viewer-art-width').value);
+      art = Number(document.querySelector('#viewer-art-width').value) * (measurementSystem === 'imperial' ? 2.54 : 1);
     if (!Number.isFinite(art) || art < 1 || art > 600) return;
     document.querySelector('#viewer-room-stage').style.aspectRatio = `${wall}/280`;
     viewerWallWidth = wall;
+    customRoomWidths.set(original, art);
     document.querySelector('#viewer-room-work').style.width = `${100*art/wall}%`;
-    document.querySelector('#viewer-wall-output').textContent = (wall / 100).toFixed(1) + ' m';
-    document.querySelector('#viewer-room-measure').textContent = (wall / 100).toFixed(1) + ' m wall'
+    document.querySelector('#viewer-wall-output').textContent = wallLength(wall);
+    document.querySelector('#viewer-room-measure').textContent = wallLength(wall) + ' wall'
   };
   document.querySelector('#viewer-wall-width').addEventListener('input', update);
   document.querySelector('#viewer-art-width').addEventListener('input', update);
@@ -615,7 +663,7 @@ function displayArt() {
   img.src = "/" + a.image;
   img.alt = a.alt;
   animateArtworkImage(img);
-  document.querySelector('#full-caption').textContent = a.caption || a.seriesName || a.alt;
+  document.querySelector('#full-caption').textContent = dimensionText(a.caption || a.seriesName || a.alt);
   document.querySelector('#viewer-count').textContent = `${String(activeIndex+1).padStart(2,'0')} / ${String(currentImages.length).padStart(2,'0')}`;
   document.querySelector('#inquire').href = `mailto:contact@carlafache.com?subject=${encodeURIComponent('Artwork inquiry — '+(a.caption||a.alt))}`;
   document.querySelectorAll('#prev-art,#next-art').forEach(b => b.hidden = currentImages.length < 2);

@@ -92,7 +92,25 @@ function run(file) {
   assert(ctx.currencyNote().includes('Oct 11, 2026'));
   assert.equal(art.price, 10000);
   ctx.location.pathname='/artworks/'+portfolio.slug;ctx.route();assert(node('main').innerHTML.includes(portfolio.caption));ctx.location.pathname='/artworks/'+art.slug+'.html';ctx.route();assert(node('main').innerHTML.includes(art.title));
-  console.log(file + ': filters, titles, prices, favorites, details, viewer, room crops and sharing passed.');
+  assert.equal(ctx.dimensionText('25.4 × 50.8 cm'), '25.4 × 50.8 cm');
+  assert.equal(ctx.dimensionText('10 × 20 inches'), '25.4 × 50.8 cm');
+  assert.equal(ctx.wallLength(400), '4.0 m');
+  const titlesBefore = data.collect.images.map(a => a.title);
+  const changeUnits = listeners.filter(([type]) => type === 'change').map(([,fn]) => fn);
+  const event = {target: {matches: selector => selector === '[data-measurements]', value: 'imperial'}};
+  changeUnits.forEach(fn => fn(event));
+  assert.equal(storage.get('carla-fache-measurements'), 'imperial');
+  assert.equal(ctx.dimensionText('25.4 × 50.8 cm'), '10 × 20 in');
+  assert.equal(ctx.dimensionText('10 × 20 inches'), '10 × 20 in');
+  assert.equal(ctx.wallLength(304.8), '10.0 ft');
+  assert.equal(ctx.artworkLength(25.4), '10 in');
+  assert(ctx.collectCard(art).includes(ctx.dimensionText(art.dimensions)));
+  assert(ctx.sizeOptions().includes('47.2 in'));
+  assert.deepEqual(data.collect.images.map(a => a.title), titlesBefore);
+  event.target.value = 'metric'; changeUnits.forEach(fn => fn(event));
+  assert.equal(storage.get('carla-fache-measurements'), 'metric');
+  assert.equal(ctx.dimensionText('25.4 × 50.8 cm'), '25.4 × 50.8 cm');
+  console.log(file + ': gallery, currency, room, sharing and measurement conversions passed.');
 }
 
 run('src/app.js');
