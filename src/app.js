@@ -57,6 +57,7 @@ function renderArrowIcons(root) {
 
 function enhanceMotion(root = main) {
   renderArrowIcons(root);
+  enhanceImages(root);
   if (reducedMotion.matches || !revealObserver) return;
   for (const el of revealedTargets)
     if (!el.isConnected) {
@@ -182,6 +183,9 @@ function renderArt(items) {
 function works(k) {
   galleryFilter = k || 'all';
   main.innerHTML = `<div class="shell">${head(k?names[k]:'Works','Paintings and installations.<br>Explore a series or open a work to take a closer look.',!!k)}<div class="filters">${['all',...series].map(s=>`<button data-filter="${s}" class="${s===galleryFilter?'selected':''}">${s==='all'?'All works':names[s].replace(' Paintings','')}</button>`).join('')}<label class="search"><input id="art-search" type="search" aria-label="Search artworks" placeholder="Search works…"></label></div><div class="art-meta" style="margin:0 0 25px"><span id="result-count"></span><span>Click a work to view</span></div><div id="gallery"></div></div>`;
+  const state = galleryStates[k || 'works'];
+  if (state) { galleryFilter = state.filter || galleryFilter; document.querySelector('#art-search').value = state.query || ''; }
+  activeGallery = k || 'works';
   updateGallery();
   document.querySelector('#art-search').addEventListener('input', scheduleGallerySearch)
 }
@@ -191,7 +195,8 @@ function updateGallery() {
   prepareArtworkIndex();
   const items = (galleryFilter === 'all' ? portfolioArtworks : DATA[galleryFilter].images).filter(a => searchText.get(a).includes(q));
   document.querySelectorAll('[data-filter]').forEach(b => b.classList.toggle('selected', b.dataset.filter === galleryFilter));
-  renderArt(items)
+  renderArt(items);
+  if (activeGallery) { const state = galleryStates[activeGallery] || (galleryStates[activeGallery] = {}); state.query = document.querySelector('#art-search')?.value || ''; state.filter = galleryFilter; storeGalleryState(); }
 }
 
 function langButtons() {
@@ -429,7 +434,7 @@ function saveButton(a, detail = false) {
 }
 
 function collectCard(a) {
-  return `<article class="gallery-card"><div class="gallery-image"><a class="gallery-frame" data-collect-art="${DATA.collect.images.indexOf(a)}" href="${a.page}" aria-label="View ${esc(a.title)}">${image({...a,sizes:'(max-width:420px) 90vw, (max-width:700px) 43vw, 28vw'})}</a>${saveButton(a)}</div><div class="gallery-info"><span class="gallery-artist">Carla Fache <span>${esc(a.year)}</span></span><h3><a href="${a.page}">${esc(a.title)}</a></h3><p class="gallery-medium">${esc(a.medium)}<br>${dimensionMarkup(a)}</p><p class="gallery-price">${priceMarkup(a)}</p><a class="gallery-buy" href="${esc(a.url)}" target="_blank" rel="noopener">Buy on Artsy <span>↗</span></a></div></article>`
+  return `<article class="gallery-card"><div class="gallery-image"><a class="gallery-frame" data-collect-art="${DATA.collect.images.indexOf(a)}" href="${a.page}" aria-label="View ${esc(a.title)}">${image({...a,sizes:'(max-width:420px) 90vw, (max-width:700px) 43vw, 28vw'})}</a>${saveButton(a)}</div><div class="gallery-info"><span class="gallery-artist">Carla Fache <span>${esc(a.year)}</span></span><h3><a href="${a.page}">${esc(a.title)}</a></h3><p class="gallery-medium">${esc(a.medium)}<br>${dimensionMarkup(a)}</p>${compareButton(a)}<p class="gallery-price">${priceMarkup(a)}</p><a class="gallery-buy" href="${esc(a.url)}" target="_blank" rel="noopener">Buy on Artsy <span>↗</span></a></div></article>`
 }
 
 function collectPreview() {
@@ -437,7 +442,11 @@ function collectPreview() {
 }
 
 function collect() {
-  main.innerHTML = `<div class="shell collect-page" lang="en">${head('Art gallery','A selection of works by Carla Fache.<br>Find a piece for your collection.')}<div class="collect-intro"><p>Color, materiality and new ways of seeing.<br>Explore the works and continue your purchase on Artsy.</p><label class="saved-filter"><input id="saved-only" type="checkbox"> Saved works <span id="saved-total">${savedArtworks.size}</span></label></div><div class="collect-toolbar"><label class="collect-search"><span>Find an artwork</span><input type="search" id="collect-search" placeholder="Title, year or medium…"></label><label><span>Medium</span><select id="collect-category"><option value="all">All media</option><option value="painting">Acrylic painting</option><option value="mixed">Mixed media</option></select></label><label><span>Size · longest side</span><select id="collect-size">${sizeOptions()}</select></label><label><span>Color</span><select id="collect-color"><option value="all">All colors</option>${['blue','purple','red','yellow','green','orange','neutral'].map(c=>`<option value="${c}">${c[0].toUpperCase()+c.slice(1)}</option>`).join('')}</select></label><label><span>Sort by</span><select id="collect-sort"><option value="recent">Year: newest first</option><option value="price-asc">Price: low to high</option><option value="price-desc">Price: high to low</option><option value="title">Artwork title</option></select></label></div><div class="collect-count"><span id="collect-count" aria-live="polite"></span><button class="clear-filters" id="clear-collect">Reset filters</button>${currencySelector()}${measurementSelector()}</div><div id="collect-grid" class="shop-grid"></div><p class="gallery-note">Prices published on Artsy, checked October 11, 2026. Availability, shipping and taxes are confirmed on the artwork’s Artsy listing. Favorites are saved in this browser.</p><p class="gallery-note fx-note" data-fx-note>${currencyNote()}</p><div class="collect-help"><div><span class="eyebrow muted">A personal selection</span><h2>Which work speaks to you?</h2><p>For artwork inquiries or to arrange a private viewing, let’s talk.</p></div><a class="text-link" href="/#contact">Contact Carla <span>↗</span></a></div></div>`;
+  main.innerHTML = `<div class="shell collect-page" lang="en">${head('Art gallery','A selection of works by Carla Fache.<br>Find a piece for your collection.')}<div class="collect-intro"><p>Color, materiality and new ways of seeing.<br>Explore the works and continue your purchase on Artsy.</p><label class="saved-filter"><input id="saved-only" type="checkbox"> Saved works <span id="saved-total">${savedArtworks.size}</span></label></div><details class="collect-filter-panel" open><summary>Search &amp; filters</summary><div class="collect-toolbar"><label class="collect-search"><span>Find an artwork</span><input type="search" id="collect-search" placeholder="Title, year or medium…"></label><label><span>Medium</span><select id="collect-category"><option value="all">All media</option><option value="painting">Acrylic painting</option><option value="mixed">Mixed media</option></select></label><label><span>Size · longest side</span><select id="collect-size">${sizeOptions()}</select></label><label><span>Color</span><select id="collect-color"><option value="all">All colors</option>${['blue','purple','red','yellow','green','orange','neutral'].map(c=>`<option value="${c}">${c[0].toUpperCase()+c.slice(1)}</option>`).join('')}</select></label><label><span>Sort by</span><select id="collect-sort"><option value="recent">Year: newest first</option><option value="price-asc">Price: low to high</option><option value="price-desc">Price: high to low</option><option value="title">Artwork title</option></select></label></div></details><div class="collect-count"><span id="collect-count" aria-live="polite"></span><button class="clear-filters" id="clear-collect">Reset filters</button>${currencySelector()}${measurementSelector()}</div><div class="selection-actions"><button data-share-selection>Share favorites ↗</button><a href="/#compare">Compare selected works ↗</a></div><div id="collect-grid" class="shop-grid"></div><p class="gallery-note">Prices published on Artsy, checked October 11, 2026. Availability, shipping and taxes are confirmed on the artwork’s Artsy listing. Favorites are saved in this browser.</p><p class="gallery-note fx-note" data-fx-note>${currencyNote()}</p><div class="collect-help"><div><span class="eyebrow muted">A personal selection</span><h2>Which work speaks to you?</h2><p>For artwork inquiries or to arrange a private viewing, let’s talk.</p></div><a class="text-link" href="/#contact">Contact Carla <span>↗</span></a></div></div>`;
+  restoreCollect();
+  activeGallery = 'collect';
+  const panel = document.querySelector('.collect-filter-panel');
+  if (panel && window.matchMedia('(max-width:700px)').matches) panel.open = false;
   updateCollect();
   document.querySelector('#collect-search').addEventListener('input', scheduleCollectSearch);
   document.querySelectorAll('#collect-category,#collect-sort,#collect-size,#collect-color,#saved-only').forEach(el => el.addEventListener('change', updateCollect));
@@ -466,6 +475,7 @@ function updateCollect() {
   grid.innerHTML = items.length ? items.map(collectCard).join('') : '<div class="no-results">No artworks match this selection. Try another filter or save a work to build your collection.</div>';
   document.querySelector('#collect-count').textContent = `${items.length} ${items.length===1?'artwork':'artworks'}`;
   document.querySelector('#saved-total').textContent = savedArtworks.size;
+  rememberCollect();
   enhanceMotion(grid)
 }
 
@@ -561,6 +571,9 @@ function contact() {
 function route() {
   if (!DATA) return;
   clearTimeout(searchTimer);
+  persistGalleryState();
+  activeGallery = null;
+  actionDialog?.close();
   resetMotion();
   const artworkPath = location.pathname.replace(/\.html$/, '').match(/\/artworks\/([^/]+)$/);
   const k = location.hash.slice(1) || (artworkPath ? 'artwork/' + artworkPath[1] : 'home');
@@ -576,11 +589,13 @@ function route() {
   else if (k === 'cv') cv();
   else if (k === 'viewing' || k === 'studio') photographic(k);
   else if (k === 'collect') collect();
+  else if (k === 'compare') comparisonPage();
+  else if (k.startsWith('selection=')) selectionPage();
   else if (k === 'artsy') artsy();
   else if (k === 'contact') contact();
   else home();
   window.scrollTo({
-    top: 0,
+    top: activeGallery ? galleryStates[activeGallery]?.scroll || 0 : 0,
     left: 0,
     behavior: 'instant'
   });
@@ -660,9 +675,15 @@ function displayArt() {
   const a = currentImages[activeIndex];
   const img = document.querySelector('#full-image');
   img.onload = null;
+  img.parentElement?.classList.add('image-pending');
   img.src = "/" + a.image;
   img.alt = a.alt;
+  if (img.parentElement) {
+    const preview = a.responsiveWidths?.length ? a.image.replace('assets/', 'assets/responsive/').replace(/\.webp$/, '-' + a.responsiveWidths[0] + '.webp') : null;
+    img.parentElement.style.backgroundImage = preview ? `url("/${preview}")` : '';
+  }
   animateArtworkImage(img);
+  enhanceImages(dialog);
   document.querySelector('#full-caption').textContent = dimensionText(a.caption || a.seriesName || a.alt);
   document.querySelector('#viewer-count').textContent = `${String(activeIndex+1).padStart(2,'0')} / ${String(currentImages.length).padStart(2,'0')}`;
   document.querySelector('#inquire').href = `mailto:contact@carlafache.com?subject=${encodeURIComponent('Artwork inquiry — '+(a.caption||a.alt))}`;
@@ -768,6 +789,26 @@ function changeWall(button, viewer = false) {
 function handleClick(e) {
   const target = e.target;
   if (!target.closest) return;
+  const retry = target.closest('[data-retry-image]');
+  if (retry) { e.preventDefault(); retryImage(retry); return; }
+  if (target.closest('[data-close-action]')) { actionDialog?.close(); return; }
+  if (target.closest('[data-copy-email]')) { copyText('contact@carlafache.com','Email address copied.'); return; }
+  if (target.closest('[data-copy-selection]')) { copyText(selectionURL(),'Selection link copied.'); return; }
+  if (target.closest('[data-share-selection]')) { shareSelection(); return; }
+  if (target.closest('[data-save-selection]')) {
+    sharedSelectionSlugs(location.hash).forEach(slug => savedArtworks.add(slug));
+    try { localStorage.setItem('carla-fache-favorites',JSON.stringify([...savedArtworks])); } catch {}
+    selectionPage();
+    const savedButton = document.querySelector('[data-save-selection]');
+    if (savedButton) savedButton.textContent = 'Selection saved ✓';
+    return;
+  }
+  const compare = target.closest('[data-compare]');
+  if (compare) { toggleCompare(compare.dataset.compare); return; }
+  if (target.closest('[data-clear-compare]')) { compareSlugs.clear(); updateCompareTray(); if (location.hash === '#compare') comparisonPage(); return; }
+  const inquiry = target.closest('a[href^="mailto:"]');
+  if (inquiry) { e.preventDefault(); if (actionDialog?.contains(inquiry)) { location.href = inquiry.href; return; } openInquiry(dialog.open ? currentImages[activeIndex] : findArtwork(location.pathname.replace(/\.html$/, '').split('/').pop())); return; }
+
   if (target.closest('.skip')) {
     e.preventDefault();
     main.focus();
@@ -835,3 +876,148 @@ function handleClick(e) {
 document.addEventListener('click', handleClick);
 
 renderArrowIcons(document);
+
+// Gallery state stays in this browser tab; shared selections contain artwork IDs only.
+const galleryStates = {};
+try { Object.assign(galleryStates, JSON.parse(sessionStorage.getItem('cf-gallery-state') || '{}')); } catch {}
+let activeGallery = null, scrollSaveTimer;
+function persistGalleryState() {
+  if (!activeGallery) return;
+  const state = galleryStates[activeGallery] || (galleryStates[activeGallery] = {});
+  state.scroll = window.scrollY || 0;
+  storeGalleryState();
+}
+function storeGalleryState() { try { sessionStorage.setItem('cf-gallery-state', JSON.stringify(galleryStates)); } catch {} }
+window.addEventListener('scroll', () => { clearTimeout(scrollSaveTimer); scrollSaveTimer = setTimeout(persistGalleryState, 150); }, {passive:true});
+window.addEventListener('pagehide', persistGalleryState);
+function rememberCollect() {
+  const state = galleryStates.collect || (galleryStates.collect = {});
+  for (const key of ['search','category','size','color','sort']) state[key] = document.querySelector('#collect-' + key).value;
+  state.saved = document.querySelector('#saved-only').checked;
+  storeGalleryState();
+}
+function restoreCollect() {
+  const state = galleryStates.collect;
+  if (!state) return;
+  for (const key of ['search','category','size','color','sort']) if (typeof state[key] === 'string') document.querySelector('#collect-' + key).value = state[key];
+  document.querySelector('#saved-only').checked = Boolean(state.saved);
+}
+
+const compareSlugs = new Set();
+function compareButton(a) {
+  const selected = compareSlugs.has(a.slug);
+  return `<button class="compare-button" data-compare="${esc(a.slug)}" aria-pressed="${selected}">${selected ? '✓ Selected' : '+ Compare'}</button>`;
+}
+let compareTray;
+function updateCompareTray(message = '') {
+  if (!compareTray) { compareTray = document.createElement('aside'); compareTray.className = 'compare-tray'; compareTray.setAttribute('aria-label','Artwork comparison'); document.body.append(compareTray); }
+  compareTray.hidden = compareSlugs.size === 0 && !message;
+  compareTray.innerHTML = `<span aria-live="polite">${esc(message || `${compareSlugs.size} of 3 works selected`)}</span><a href="/#compare">Compare works</a><button data-clear-compare>Clear</button>`;
+  document.querySelectorAll('[data-compare]').forEach(button => {
+    const selected = compareSlugs.has(button.dataset.compare);
+    button.setAttribute('aria-pressed',String(selected)); button.textContent = selected ? '✓ Selected' : '+ Compare';
+  });
+}
+function toggleCompare(slug) {
+  if (!DATA.collect.images.some(a => a.slug === slug)) return;
+  if (compareSlugs.has(slug)) compareSlugs.delete(slug);
+  else if (compareSlugs.size < 3) compareSlugs.add(slug);
+  else { updateCompareTray('Choose up to 3 works. Remove one to add another.'); return; }
+  updateCompareTray();
+  if (location.hash === '#compare') comparisonPage();
+}
+function comparisonPage() {
+  const works = [...compareSlugs].map(findArtwork).filter(Boolean);
+  main.innerHTML = `<div class="shell comparison-page">${head('Compare artworks','Consider the scale, materials and price side by side.')}<a class="back" href="/#collect">← Back to gallery</a><div class="comparison-controls">${currencySelector()}${measurementSelector()}</div>${works.length ? `<div class="comparison-grid">${works.map(a=>`<article><button class="gallery-frame" data-collect-art="${DATA.collect.images.indexOf(a)}" aria-label="View ${esc(a.title)}">${image(a)}</button><h2>${esc(a.title)}</h2><dl><dt>Dimensions</dt><dd>${dimensionMarkup(a)}</dd><dt>Medium</dt><dd>${esc(a.medium)}</dd><dt>Year</dt><dd>${esc(a.year)}</dd><dt>Price</dt><dd>${priceMarkup(a)}</dd></dl><a class="gallery-buy" href="${esc(a.url)}" target="_blank" rel="noopener">Buy on Artsy ↗</a>${compareButton(a)}<a class="text-link" href="${esc(a.page)}">Artwork details ↗</a></article>`).join('')}</div>` : '<p class="no-results">Select two or three works using “Compare” in the gallery.</p>'}<p class="gallery-note" data-fx-note>${currencyNote()}</p></div>`;
+  enhanceMotion();
+}
+
+function selectionURL(slugs = [...savedArtworks]) {
+  const valid = [...new Set(slugs)].filter(slug => DATA.collect.images.some(a => a.slug === slug));
+  return location.origin + '/#selection=' + encodeURIComponent(valid.join(','));
+}
+function sharedSelectionSlugs(hash) {
+  try { return [...new Set(decodeURIComponent(hash.slice('#selection='.length)).split(','))].slice(0,50).filter(slug => DATA.collect.images.some(a => a.slug === slug)); } catch { return []; }
+}
+function selectionPage() {
+  const slugs = sharedSelectionSlugs(location.hash), works = slugs.map(findArtwork);
+  main.innerHTML = `<div class="shell">${head('A personal selection',`${works.length} works selected to share.`)}<a class="back" href="/#collect">← Explore the gallery</a><div class="comparison-controls">${currencySelector()}${measurementSelector()}${works.length?'<button data-save-selection>Save this selection</button>':''}</div><div class="shop-grid">${works.length ? works.map(collectCard).join('') : '<p class="no-results">This selection is empty or no longer available.</p>'}</div><p class="gallery-note" data-fx-note>${currencyNote()}</p></div>`;
+  enhanceMotion();
+}
+
+let actionDialog;
+function openActionDialog(title, content) {
+  if (!actionDialog) {
+    actionDialog = document.createElement('dialog'); actionDialog.className = 'action-dialog';
+    actionDialog.setAttribute('aria-labelledby','action-title'); document.body.append(actionDialog);
+  }
+  actionDialog.innerHTML = `<button class="action-close" data-close-action aria-label="Close">Close ×</button><h2 id="action-title">${esc(title)}</h2>${content}<p id="action-status" role="status"></p>`;
+  renderArrowIcons(actionDialog);
+  if (!actionDialog.open) actionDialog.showModal();
+}
+function inquiryLinks(a) {
+  const title = a ? a.shareTitle || a.title || a.caption || a.alt : '';
+  const subject = a ? 'Artwork inquiry — ' + title : 'Carla Fache inquiry';
+  const body = a ? `Hello Carla,\n\nI would like more information about ${title}.\n${location.origin + (a.page || '/')}\n\nThank you.` : 'Hello Carla,\n\n';
+  return { subject, body, mailto:'mailto:contact@carlafache.com?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body), gmail:'https://mail.google.com/mail/?view=cm&fs=1&to=contact%40carlafache.com&su='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body) };
+}
+function openInquiry(a) {
+  const links = inquiryLinks(a);
+  openActionDialog('Inquire about this work', `<p>${esc(a ? a.shareTitle || a.title || a.caption || a.alt : 'Get in touch with Carla Fache')}</p><div class="action-options"><a href="${esc(links.gmail)}" target="_blank" rel="noopener noreferrer">Open Gmail ↗</a><a href="${esc(links.mailto)}">Use my email app ↗</a><button data-copy-email>Copy email address</button></div><p class="gallery-note">Your email opens as a draft for you to review and send.</p>`);
+}
+async function copyText(text, success) {
+  const status = document.querySelector('#action-status');
+  try { await navigator.clipboard.writeText(text); status.textContent = success; }
+  catch { status.textContent = 'Select and copy: ' + text; }
+}
+function shareSelection() {
+  if (![...savedArtworks].some(slug => DATA.collect.images.some(a => a.slug === slug))) {
+    openActionDialog('Share your favorites','<p>Save at least one artwork using the heart in the gallery.</p>'); return;
+  }
+  const url = selectionURL();
+  openActionDialog('Share your favorites', `<p>Anyone with this link can view this selection. Your other browser preferences stay private.</p><div class="action-options"><button data-copy-selection>Copy selection link</button><a href="https://wa.me/?text=${encodeURIComponent('My Carla Fache selection\n'+url)}" target="_blank" rel="noopener noreferrer">Share on WhatsApp ↗</a><a href="${esc(url)}">Preview selection ↗</a></div>`);
+}
+
+function enhanceImages(root) {
+  root.querySelectorAll('img').forEach(img => {
+    if (img.dataset.loadEnhanced) return;
+    img.dataset.loadEnhanced = 'true';
+    const parent = img.parentElement;
+    if (!parent) return;
+    const ready = () => { parent.classList.remove('image-pending','image-failed'); parent.querySelector('.image-retry')?.remove(); delete parent.dataset.retryImage; img.removeAttribute('aria-busy'); };
+    const failed = () => {
+      parent.classList.remove('image-pending'); parent.classList.add('image-failed');
+      if (parent.querySelector('.image-retry')) return;
+      const interactive = parent.matches('a,button');
+      const button = document.createElement(interactive ? 'span' : 'button');
+      if (interactive) parent.dataset.retryImage = 'true';
+      else { button.type = 'button'; button.dataset.retryImage = 'true'; }
+      button.className = 'image-retry'; button.textContent = 'Image unavailable · Retry'; parent.append(button);
+    };
+    img.addEventListener('load', ready); img.addEventListener('error', failed);
+    parent.classList.add('image-loading-frame');
+    if (img.complete && img.naturalWidth) ready();
+    else { parent.classList.add('image-pending'); img.setAttribute('aria-busy','true'); if (img.complete && img.getAttribute('src')) failed(); }
+  });
+}
+function retryImage(button) {
+  const img = button.querySelector('img') || button.parentElement.querySelector('img'); if (!img) return;
+  const parent = img.parentElement; parent.classList.remove('image-failed'); parent.classList.add('image-pending');
+  parent.querySelector('.image-retry')?.remove(); delete parent.dataset.retryImage;
+  const url = new URL(img.getAttribute('src'), location.origin); url.searchParams.set('retry',String(Date.now()));
+  const candidates = img.getAttribute('srcset'); if (candidates) img.removeAttribute('srcset');
+  img.src = url.href;
+}
+
+let swipeStart;
+dialog.addEventListener('touchstart', e => {
+  if (viewerMode !== 'artwork' || !e.target.closest('.viewer-image') || e.touches.length !== 1) { swipeStart = null; return; }
+  swipeStart = {x:e.touches[0].clientX,y:e.touches[0].clientY};
+}, {passive:true});
+dialog.addEventListener('touchend', e => {
+  if (!swipeStart || e.changedTouches.length !== 1) { swipeStart = null; return; }
+  const dx=e.changedTouches[0].clientX-swipeStart.x, dy=e.changedTouches[0].clientY-swipeStart.y;
+  swipeStart=null;
+  if (Math.abs(dx)>60 && Math.abs(dx)>Math.abs(dy)*1.5 && viewerMode === 'artwork') stepArt(dx<0?1:-1);
+}, {passive:true});
+dialog.addEventListener('touchcancel', () => swipeStart=null, {passive:true});

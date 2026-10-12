@@ -2451,3 +2451,48 @@ select:focus-visible {
 /* Consistent arrows on desktop, iOS and Android. */
 .arrow-icon { display:inline-block; width:1em; height:1em; vertical-align:-.12em; flex-shrink:0; pointer-events:none; }
 .viewer-arrows button { display:inline-flex; align-items:center; justify-content:center; }
+/* Small, reversible interactions follow the gallery's quiet visual language. */
+.collect-filter-panel { border-block: 1px solid var(--line, #ddd); margin-top: 24px; }
+.collect-filter-panel summary { padding: 18px 0; cursor: pointer; font-size: 13px; }
+.selection-actions, .comparison-controls { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; margin: 20px 0; font-size: 12px; }
+.selection-actions button, .compare-button, .comparison-controls button { padding: 10px 14px; border: 1px solid #dedadf; background: #f6f5f3; cursor: pointer; font: inherit; }
+.compare-button { margin-top: 12px; font-size: 11px; }
+.compare-button[aria-pressed="true"] { background: #ebe4ed; border-color: #78627d; }
+.compare-tray { position: fixed; bottom: max(18px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: 20; display: flex; align-items: center; gap: 22px; padding: 16px 22px; background: #fff; border: 1px solid #dedadf; box-shadow: 0 5px 30px #0002; width: max-content; max-width: calc(100% - 24px); font-size: 12px; }
+.compare-tray[hidden] { display: none; }
+.compare-tray a { text-decoration: underline; white-space: nowrap; }
+.compare-tray button { border: 0; background: none; cursor: pointer; font: inherit; }
+.comparison-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 30px; margin: 35px 0; }
+.comparison-grid article { min-width: 0; }
+.comparison-grid img { width: 100%; height: 320px; object-fit: contain; background: #f6f5f3; }
+.comparison-grid h2 { font-size: 24px; margin: 20px 0; }
+.comparison-grid dl { display: grid; grid-template-columns: 1fr; gap: 6px; font-size: 13px; }
+.comparison-grid dt { color: var(--muted); margin-top: 12px; }
+.comparison-grid dd { margin: 0; }
+.comparison-grid .text-link { display: block; margin: 15px 0; }
+dialog.action-dialog { width: min(480px, calc(100vw - 32px)); height: auto; max-height: calc(100dvh - 32px); position: fixed; inset: 0; margin: auto; padding: 32px; overflow-y: auto; display: none; border: 1px solid #dedadf; background: #fff; color: var(--ink); }
+dialog.action-dialog[open] { display: block; }
+.action-dialog h2 { font-size: 30px; margin: 28px 0 18px; }
+.action-dialog p { font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+.action-close { float: right; border: 0; background: none; font: inherit; cursor: pointer; }
+.action-options { display: grid; gap: 10px; margin: 24px 0; }
+.action-options a, .action-options button { padding: 14px; border: 1px solid #dedadf; background: #f6f5f3; font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.image-loading-frame { position: relative; }
+.image-pending { background-color: #f4f2f0; }
+.image-pending img { opacity: .25; }
+.image-pending::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(110deg, transparent 25%, #ffffff80 50%, transparent 75%); background-size: 200% 100%; animation: image-shimmer 1.6s linear infinite; }
+.image-failed img { opacity: .15; }
+.image-retry { position: absolute; inset: auto 8px 8px; display: block; padding: 12px; background: #fff; border: 1px solid #dedadf; color: #222; font-size: 12px; cursor: pointer; z-index: 2; }
+.viewer-image { background-repeat: no-repeat; background-position: center; background-size: contain; touch-action: pan-y pinch-zoom; }
+@keyframes image-shimmer { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .image-pending::after { animation: none; } }
+@media (max-width: 700px) {
+  .comparison-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .comparison-grid img { height: 210px; }
+  .comparison-grid h2 { font-size: 20px; }
+  .comparison-grid .gallery-buy { font-size: 12px; }
+  .compare-tray { flex-wrap: wrap; justify-content: center; gap: 12px; padding: 12px; }
+  .viewer-arrows button, .viewer-modes button, .viewer-modes a, #close-viewer, #menu-toggle { min-height: 44px; min-width: 44px; }
+  .collect-filter-panel .collect-toolbar { margin-top: 0; }
+  .action-dialog .action-options a, .action-dialog .action-options button { min-height: 44px; }
+}
